@@ -20,7 +20,7 @@ Generated samples for `CIFAR10`, `200k_Train_Iters` ([TB Screenshot](checkpoints
 
 ![](checkpoints/exp_001/samples_dpmp-quadratic.png) 
 
-Check [`jupyter_notebooks\cifar10_fm_unet_vis.ipynb`](jupyter_notebooks\cifar10_fm_unet_vis.ipynb) for more samples & FID metrics from different ODE solvers.
+Check [`jupyter_notebooks/cifar10_fm_unet_vis.ipynb`](jupyter_notebooks/cifar10_fm_unet_vis.ipynb) for more samples & FID metrics from different ODE solvers.
 
 ## Setup
 
