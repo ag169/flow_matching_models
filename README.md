@@ -1,8 +1,7 @@
 # flow_matching_models
+A from-scratch implementation of flow-matching models for conditional image generation.
 
-A PyTorch implementation of conditional flow matching (CFM) models for image generation. Implements classifier-free guidance, different ODE solvers, FID metric, and mixed-precision training.
-
-Developed on a Dell XPS 14 laptop with Intel Panther Lake X7 SoC, 64GB RAM, Windows-11.
+Implements classifier-free guidance, different ODE solvers, FID metric, and mixed-precision training. Developed on a Dell XPS 14 laptop with Intel Panther Lake X7 SoC, 64GB RAM, Windows-11.
 
 ## Description
 
@@ -21,7 +20,7 @@ Generated samples for `CIFAR10`, `200k_Train_Iters` ([TB Screenshot](checkpoints
 
 ![](checkpoints/exp_001/samples_dpmp-quadratic.png) 
 
-Check [`jupyter_notebooks\cifar10_fm_unet_vis.ipynb`](jupyter_notebooks\cifar10_fm_unet_vis.ipynb) for more samples & FID metrics from different ODE solvers.
+Check [`jupyter_notebooks/cifar10_fm_unet_vis.ipynb`](jupyter_notebooks/cifar10_fm_unet_vis.ipynb) for more samples & FID metrics from different ODE solvers.
 
 ## Setup
 
