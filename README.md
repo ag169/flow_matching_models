@@ -66,8 +66,8 @@ This will:
 
 ## TODO
 
-- [ ] Add more data augmentations
-- [ ] Add Exponential Moving Average
+- [x] Add more data augmentations
+- [x] Add Exponential Moving Average
 - [ ] Add transformer architecture
 - [ ] Add more ODE solvers
 - [ ] Real-world dataset configs (eg: ImageNet)
