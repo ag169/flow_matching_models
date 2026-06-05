@@ -1,3 +1,4 @@
+import copy
 from typing import Dict
 import yaml
 import os
@@ -10,9 +11,10 @@ import torchvision.utils as tv_utils
 
 import data
 from models import get_model
-
 from utils import flow_matching_utils as fm_utils
 from utils import fid_utils, log_utils
+
+from .ema_lib import ExponentialMovingAverage as EMA
 
 _TRAIN_LOSS_KEY = "train_loss"
 _VAL_LOSS_KEY = "val_loss"
@@ -38,8 +40,8 @@ class Trainer:
             self.device.type != "cpu"
         )
 
-        self.model = self._build_model()
-        self.model = self.model.to(self.device)
+        self.model = self._build_model().to(self.device)
+        self._setup_ema()
         self.optimizer = self._setup_optimizer()
         self.scheduler = self._setup_scheduler()
 
@@ -90,6 +92,17 @@ class Trainer:
         self._count_model_params(model)
 
         return model
+
+    def _setup_ema(self) -> None:
+        # Setup EMA (disabled by default when ema_decay=0)
+        self.ema_decay = self.config["training"].get("ema_decay", 0)
+        self.ema_enabled = self.ema_decay > 0
+        if self.ema_enabled:
+            print(f"EMA enabled with decay: {self.ema_decay}")
+            self.ema_model = EMA(
+                model=self.model,
+                decay=self.ema_decay,
+            )
 
     def _count_model_params(self, model: nn.Module) -> None:
         """Count and print the number of parameters."""
@@ -232,10 +245,13 @@ class Trainer:
         current_lr = float(self.scheduler.get_last_lr()[0])
         self.scheduler.step()
 
+        if self.ema_enabled:
+            self.ema_model.update(self.model)
+
         metrics = {_TRAIN_LOSS_KEY: loss.item(), _LR_KEY: current_lr}
         return metrics
 
-    def _log_sample_images(self, step: int) -> None:
+    def _log_sample_images(self, model: nn.Module, step: int) -> None:
         """Generate and log sample images to TensorBoard."""
         print(f"Generating sample images at step {step}...")
 
@@ -254,7 +270,7 @@ class Trainer:
             shape = (1, 3, imgsize, imgsize)
 
             sample = self.val_ode_solver.sample(
-                model=self.model,
+                model=model,
                 shape=shape,
                 cls=cls_tensor,
                 device=self.device,
@@ -271,8 +287,12 @@ class Trainer:
 
     def _validate(self, step: int) -> Dict[str, float]:
         """Execute validation loop"""
-        self.model.eval()
-        self._log_sample_images(step)
+        if self.ema_enabled:
+            val_model = self.ema_model.shadow_model.eval()
+        else:
+            val_model = self.model.eval()
+
+        self._log_sample_images(val_model, step)
 
         print(f"Running validation for step: {step}...")
 
@@ -300,7 +320,7 @@ class Trainer:
                     enabled=self.amp_enabled,
                 ):
                     loss, _ = self.loss_fn(
-                        model=self.model, x_1=x_1, eps=eps, t=t, cls=cls
+                        model=val_model, x_1=x_1, eps=eps, t=t, cls=cls
                     )
 
                 self.val_step_timer.record()
@@ -317,7 +337,7 @@ class Trainer:
 
         val_metrics[f"{_VAL_FID_KEY}_{self.val_fid_num_samples}-samples"] = (
             self.fid_calculator.compute_fid(
-                model=self.model,
+                model=val_model,
                 device=self.device,
                 solver=self.val_ode_solver,
                 cfg_scale=self.val_fid_cfg_scale,
@@ -406,6 +426,9 @@ class Trainer:
             "step": step,
             "config": self.config,
         }
+        if self.ema_enabled:
+            checkpoint_state["ema_state"] = self.ema_model.get_state_dict()
+
         torch.save(
             checkpoint_state,
             os.path.join(self.ckpt_dir_path, f"checkpoint_latest.pt"),

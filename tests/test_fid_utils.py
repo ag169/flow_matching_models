@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from utils import fid_utils, flow_matching_utils as fm_utils
 
+# pytest .\tests\test_fid_utils.py
+
 
 class TestFidStatistics(unittest.TestCase):
     """Tests for low-level FID statistics functions."""
