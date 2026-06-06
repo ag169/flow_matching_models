@@ -1,8 +1,6 @@
 # flow_matching_models
 A from-scratch implementation of flow-matching models for conditional image generation.
 
-Implements classifier-free guidance, different ODE solvers, FID metric, and mixed-precision training. Developed on a Dell XPS 14 laptop with Intel Panther Lake X7 SoC, 64GB RAM, Windows-11.
-
 ## Description
 
 This project implements **conditional flow matching** — a modern generative modeling framework that learns deterministic vector fields to map a noise distribution (typically Gaussian at t=0) to the data distribution (at t=1). Unlike diffusion models that require solving SDEs, CFM directly optimizes an ODE whose solution at t=1 samples from the target distribution.
@@ -34,6 +32,10 @@ Check [`jupyter_notebooks/cifar10_fm_unet_vis.ipynb`](jupyter_notebooks/cifar10_
 - TensorBoard
 
 [Setup instructions](https://docs.pytorch.org/docs/2.12/notes/get_start_xpu.html) for PyTorch on Intel GPU. Rest of the packages installed via `pip install`.
+
+### System Requirements
+
+The base UNet config needs `~6GB VRAM` to train. Supports CPU, Nvidia-GPU & Intel-GPU. Developed on a Dell XPS 14 laptop with Intel Panther Lake X7 SoC, 64GB RAM, Windows-11.
 
 ### Configuration
 
