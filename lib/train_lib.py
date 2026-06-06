@@ -197,7 +197,7 @@ class Trainer:
         self.val_step_timer = log_utils.Timer()
 
         self.val_fid_num_samples = self.config["fid"].get("num_samples", 5000)
-        self.val_fid_sample_batch_size = self.config["fid"].get("batch_size", 5000)
+        self.val_fid_sample_batch_size = self.config["fid"].get("batch_size", 32)
         self.val_fid_cfg_scale = self.config["fid"].get("cfg_scale", 1.0)
         self.fid_calculator = fid_utils.FidCalculator(
             gt_loader=self.val_loader,
