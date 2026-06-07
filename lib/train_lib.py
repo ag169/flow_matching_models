@@ -26,6 +26,14 @@ _TRAIN_STEPS_PER_SECOND_KEY = "train_batch_steps_per_second"
 _VAL_STEPS_PER_SECOND_KEY = "val_batch_steps_per_second"
 
 
+def _block_for_timing(device: torch.device):
+    if device.type == "xpu":
+        torch.xpu.synchronize()
+    elif device.type == "cuda":
+        torch.cuda.synchronize()
+    return
+
+
 class Trainer:
     def __init__(self, config_path: str, ckpt_dir_path: str):
         # Load configuration from YAML file
@@ -323,6 +331,7 @@ class Trainer:
                         model=val_model, x_1=x_1, eps=eps, t=t, cls=cls
                     )
 
+                _block_for_timing(self.device)
                 self.val_step_timer.record()
 
                 val_meter.update({_VAL_LOSS_KEY: loss.item()})
@@ -381,7 +390,7 @@ class Trainer:
 
             # Execute training step
             metrics = self._train_step(batch)
-
+            _block_for_timing(self.device)
             self.train_step_timer.record()
 
             self.tb_meter.update(metrics)
