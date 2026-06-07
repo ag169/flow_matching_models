@@ -1,3 +1,5 @@
+import time
+
 from typing import Dict, Optional
 
 
@@ -137,7 +139,6 @@ class Timer:
         Updates total_time with the elapsed time since the previous call,
         and increments the call counter.
         """
-        import time
 
         current_time = time.time()
         if self._call_count > 0:
