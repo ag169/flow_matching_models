@@ -102,11 +102,11 @@ def compute_flow_matching_loss(
     """
     batch_size = x_1.shape[0]
 
-    # True velocity
-    v_true = x_1 - eps
-
+    # x_t = (1 - t) * eps + (t * x_1)
     t_4d = t[:, None, None, None]
     x_t = ((1.0 - t_4d) * eps) + (t_4d * x_1)
+    # v_t = d x_t / dt = x_1 - eps
+    v_true = x_1 - eps
 
     # CLS 0 is null-class (unconditional)
     # CLS 1 onwards is for each class in the dataset.
