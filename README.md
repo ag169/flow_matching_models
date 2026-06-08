@@ -3,7 +3,7 @@ A from-scratch implementation of flow-matching models for conditional image gene
 
 ## Description
 
-This project implements **conditional flow matching** — a modern generative modeling framework that learns deterministic vector fields to map a noise distribution (typically Gaussian at t=0) to the data distribution (at t=1). Unlike diffusion models that require solving SDEs, CFM directly optimizes an ODE whose solution at t=1 samples from the target distribution.
+This project implements **conditional flow matching** — a modern generative modeling framework that learns deterministic vector fields to map a noise distribution (typically Gaussian) at t=0 to the data distribution at t=1.
 
 Implementation details:
 - **Class conditioned** flow-matching models for image generation. Can use any image classification dataset to train a class-label conditioned image generation model
