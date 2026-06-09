@@ -12,10 +12,13 @@ def pad_to_align(x: torch.Tensor, dims_multiple_of: int = 8) -> torch.Tensor:
 
     for ii in range(x.ndim - 1, 1, -1):
         pad_list.append(0)
-        pad_list.append(
-            dims_multiple_of * (x_shape[ii] + dims_multiple_of - 1) // dims_multiple_of
+        padded_dim = (
+            ((x_shape[ii] + dims_multiple_of - 1) // dims_multiple_of) * dims_multiple_of
         )
-
+        pad_list.append(
+            padded_dim - x_shape[ii]
+        )
+    
     return F.pad(x, pad_list)
 
 

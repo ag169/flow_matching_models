@@ -114,6 +114,8 @@ class FlowMatchingUNet(nn.Module):
 
         self.n_classes = num_classes
 
+        self.dims_multiple_of = 2 ** (len(channels))
+
         self.timestep_embed = mu.SinusoidalTimestepEmbed(embed_dim)
         # Also learn unconditional embedding for classifier-free guidance.
         self.cls_embed = nn.Embedding(self.n_classes + 1, embed_dim)
@@ -157,7 +159,9 @@ class FlowMatchingUNet(nn.Module):
         cls_emb = self.cls_embed(cls)
         cond_emb = self.embed_module(t_emb, cls_emb)
 
-        x_in = self.conv_in(x)
+        x_shape = x.shape
+        x_padded = mu.pad_to_align(x, self.dims_multiple_of)
+        x_in = self.conv_in(x_padded)
 
         x_list = list()
         x_out = x_in
@@ -176,5 +180,5 @@ class FlowMatchingUNet(nn.Module):
         x_out = self.rb_out(x_out, cond_emb)
         x_out = self.norm_out(x_out)
         v_out = self.conv_out(x_out)
-
+        v_out = v_out[:, :, :x_shape[2], :x_shape[3]]
         return v_out
