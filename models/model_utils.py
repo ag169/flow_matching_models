@@ -20,6 +20,24 @@ def pad_to_align(x: torch.Tensor, dims_multiple_of: int = 8) -> torch.Tensor:
     return F.pad(x, pad_list)
 
 
+class ConditionEmbedding(nn.Module):
+    """
+    Embeds continuous time 't' and categorical/text conditioning 'c'
+    into a joint embedding space.
+    """
+
+    def __init__(self, embed_dim: int):
+        super().__init__()
+        self.time_mlp = MLP(embed_dim, embed_dim, transpose_dim=False)
+        self.act = nn.SiLU()
+        self.final_proj = nn.Linear(embed_dim, embed_dim)
+
+    def forward(self, t_emb: torch.Tensor, c_emb: torch.Tensor) -> torch.Tensor:
+        # t_emb shape: [B, embed_dim], c_emb shape: [B, embed_dim]
+        t_emb = self.time_mlp(t_emb)
+        return self.final_proj(self.act(t_emb + c_emb))
+
+
 class SinusoidalTimestepEmbed(nn.Module):
     """
     Generates sinusoidal positional embeddings for [0, 1] normalized time steps 't'.

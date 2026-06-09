@@ -7,24 +7,6 @@ from typing import Sequence
 from . import model_utils as mu
 
 
-class ConditionEmbedding(nn.Module):
-    """
-    Embeds continuous time 't' and categorical/text conditioning 'c'
-    into a joint embedding space.
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__()
-        self.time_mlp = mu.MLP(embed_dim, embed_dim, transpose_dim=False)
-        self.act = nn.SiLU()
-        self.final_proj = nn.Linear(embed_dim, embed_dim)
-
-    def forward(self, t_emb: torch.Tensor, c_emb: torch.Tensor) -> torch.Tensor:
-        # t_emb shape: [B, embed_dim], c_emb shape: [B, embed_dim]
-        t_emb = self.time_mlp(t_emb)
-        return self.final_proj(self.act(t_emb + c_emb))
-
-
 class CFMResNetBlock(nn.Module):
     """
     A ResNet block that injects conditioning features via
@@ -119,7 +101,7 @@ class FlowMatchingUNet(nn.Module):
         self.timestep_embed = mu.SinusoidalTimestepEmbed(embed_dim)
         # Also learn unconditional embedding for classifier-free guidance.
         self.cls_embed = nn.Embedding(self.n_classes + 1, embed_dim)
-        self.embed_module = ConditionEmbedding(embed_dim)
+        self.embed_module = mu.ConditionEmbedding(embed_dim)
 
         self.conv_in = nn.Conv2d(c_in, channels[0], kernel_size=3, padding=1)
         self.conv_out = nn.Conv2d(channels[0], c_in, kernel_size=3, padding=1)

@@ -101,6 +101,42 @@ class TestPosEmbeds(unittest.TestCase):
         self.assertEqual(output.shape, tokens.shape)
 
 
+class TestConditionEmbedding(unittest.TestCase):
+
+    def setUp(self):
+        self.embed_dim = 32
+        self.batch_size = 4
+
+    def test_condition_embedding_forward(self):
+        """Tests ConditionEmbedding module with time and class embeddings."""
+        # Setup: Create embedding modules
+        embed_module = mu.ConditionEmbedding(self.embed_dim).to(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+
+        # Inputs: Time embedding [B, D] and Class embedding [B, D]
+        t_emb = torch.rand(self.batch_size, self.embed_dim)
+        c_emb = torch.rand(self.batch_size, self.embed_dim)
+
+        output = embed_module(t_emb, c_emb)
+
+        # Expected: Output shape should be [B, D]
+        self.assertTrue(torch.is_tensor(output))
+        self.assertEqual(output.shape, torch.Size([self.batch_size, self.embed_dim]))
+
+    def test_condition_embedding_with_zero_class(self):
+        """Tests ConditionEmbedding with zero class embedding (unconditional)."""
+        embed_module = mu.ConditionEmbedding(self.embed_dim)
+
+        # Zero class embedding for unconditional case
+        t_emb = torch.rand(2, self.embed_dim)
+        c_emb = torch.zeros(2, self.embed_dim)  # Unconditional
+
+        output = embed_module(t_emb, c_emb)
+
+        self.assertEqual(output.shape, torch.Size([2, self.embed_dim]))
+
+
 class TestMLP(unittest.TestCase):
 
     def setUp(self):
