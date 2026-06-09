@@ -277,15 +277,20 @@ class Trainer:
             cls_tensor = cls_indices[i : i + 1].long()
             shape = (1, 3, imgsize, imgsize)
 
-            sample = self.val_ode_solver.sample(
-                model=model,
-                shape=shape,
-                cls=cls_tensor,
-                device=self.device,
-                cfg_scale=cfg_scale,
-            )
-            sample = torch.clip(sample, 0.0, 1.0)
-            samples.append(sample.cpu())
+            with torch.autocast(
+                device_type=self.device.type,
+                dtype=torch.bfloat16,
+                enabled=self.amp_enabled,
+            ):
+                sample = self.val_ode_solver.sample(
+                    model=model,
+                    shape=shape,
+                    cls=cls_tensor,
+                    device=self.device,
+                    cfg_scale=cfg_scale,
+                )
+                sample = torch.clip(sample.float(), 0.0, 1.0)
+                samples.append(sample.cpu())
 
         samples = torch.cat(samples, dim=0)
         grid = tv_utils.make_grid(samples, nrow=5)
@@ -344,16 +349,21 @@ class Trainer:
         assert val_batch_rate is not None
         val_metrics[_VAL_STEPS_PER_SECOND_KEY] = val_batch_rate
 
-        val_metrics[f"{_VAL_FID_KEY}_{self.val_fid_num_samples}-samples"] = (
-            self.fid_calculator.compute_fid(
-                model=val_model,
-                device=self.device,
-                solver=self.val_ode_solver,
-                cfg_scale=self.val_fid_cfg_scale,
-                num_classes=self.num_classes,
-                imgsize=self.config["dataset"]["val"]["imgsize"],
+        with torch.autocast(
+            device_type=self.device.type,
+                dtype=torch.bfloat16,
+                enabled=self.amp_enabled,
+        ):
+            val_metrics[f"{_VAL_FID_KEY}_{self.val_fid_num_samples}-samples"] = (
+                self.fid_calculator.compute_fid(
+                    model=val_model,
+                    device=self.device,
+                    solver=self.val_ode_solver,
+                    cfg_scale=self.val_fid_cfg_scale,
+                    num_classes=self.num_classes,
+                    imgsize=self.config["dataset"]["val"]["imgsize"],
+                )
             )
-        )
 
         for metric, val in val_metrics.items():
             self.writer.add_scalar(metric, val, step)
