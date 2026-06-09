@@ -70,7 +70,7 @@ This will:
 
 - [x] Add more data augmentations
 - [x] Add Exponential Moving Average
-- [ ] Add transformer architecture
+- [x] Add transformer architecture
 - [ ] Add more ODE solvers
 - [ ] Real-world dataset configs (eg: ImageNet)
 
