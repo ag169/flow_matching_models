@@ -213,23 +213,29 @@ class ChannelRMSNorm(nn.Module):
     ):
         super().__init__()
 
+        self.in_dim = in_dim
         self.transpose_dim = transpose_dim
-        self.norm = nn.RMSNorm(
-            normalized_shape=[
-                in_dim,
-            ],
-            eps=1.0e-5,
-            elementwise_affine=elementwise_affine,
-        )
+        self.elementwise_affine = elementwise_affine
+
+        if self.elementwise_affine:
+            self.norm_scale = nn.Parameter(torch.ones((in_dim,)), requires_grad=True)
+        else:
+            self.norm_scale = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.transpose_dim:
-            x = torch.transpose(x, 1, x.ndim - 1)
+            norm_dim = 1
+        else:
+            norm_dim = -1
 
-        out = self.norm(x)
+        out = F.normalize(x, p=2, dim=norm_dim, eps=1.0e-5)
 
-        if self.transpose_dim:
-            out = torch.transpose(out, x.ndim - 1, 1)
+        if self.elementwise_affine:
+            assert self.norm_scale is not None
+            norm_shape = [1 for _ in range(x.ndim)]
+            norm_shape[norm_dim] = self.in_dim
+            norm_scale = self.norm_scale.reshape(norm_shape)
+            out = out * norm_scale
 
         return out
 
@@ -327,7 +333,7 @@ class MHCA(nn.Module):
             k = self.k_norm(k)
             qk_scale = 1.0
         else:
-            qk_scale = math.sqrt(self.head_dim)
+            qk_scale = 1.0 / math.sqrt(self.head_dim)
 
         attn_op = F.scaled_dot_product_attention(q, k, v, scale=qk_scale)
         attn_op = self._merge_heads(attn_op)

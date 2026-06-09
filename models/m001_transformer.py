@@ -26,7 +26,6 @@ class AdaLNZero(nn.Module):
         nn.init.zeros_(self.cond_proj.weight)
         nn.init.zeros_(self.cond_proj.bias)
 
-        # Layer norm with affine parameters for output
         self.norm = nn.LayerNorm(in_dim)
 
     def forward(
@@ -122,7 +121,7 @@ class Transformer(nn.Module):
         self.layers = nn.ModuleList(
             [
                 TransformerBlock(in_dim=in_dim, embed_dim=embed_dim)
-                for _ in range(num_layers - 1)
+                for _ in range(num_layers)
             ]
         )
 
@@ -204,5 +203,6 @@ class FlowMatchingTransformer(nn.Module):
         x_patches = self.patchify_conv(x_padded)
         x_txed = self.tx_blocks(x_patches, cond_emb)
         out = self.out_block(x_txed)
+
         out = out[:, :, : x_shape[2], : x_shape[3]]
         return out
