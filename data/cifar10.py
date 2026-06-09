@@ -16,7 +16,7 @@ def get_train_dataloader(
         [
             torchvision.transforms.RandomHorizontalFlip(),
             torchvision.transforms.ColorJitter(
-                brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
+                brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05
             ),
             torchvision.transforms.ToTensor(),
         ]
