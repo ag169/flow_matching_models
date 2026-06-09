@@ -171,5 +171,120 @@ class TestMLP(unittest.TestCase):
         self.assertEqual(output_4d.shape, tokens_4d.shape)
 
 
+class TestChannelRMSNorm:
+
+    def test_channel_rmsnorm_basic_3d(self):
+        """Verify output shape matches input for 3D tensor."""
+        norm = mu.ChannelRMSNorm(in_dim=64, elementwise_affine=True)
+        x = torch.randn(2, 64, 10)
+        out = norm(x)
+        assert out.shape == x.shape
+
+    def test_channel_rmsnorm_basic_4d(self):
+        """Verify output shape matches input for 4D tensor."""
+        norm = mu.ChannelRMSNorm(in_dim=32, elementwise_affine=True)
+        x = torch.randn(3, 32, 5, 6)
+        out = norm(x)
+        assert out.shape == x.shape
+
+    def test_channel_rmsnorm_transpose_consistency(self):
+        """transpose_dim=True/False should produce identical results."""
+        x = torch.randn(4, 128, 7)
+        x_nt = x.transpose(1, 2)
+
+        norm_t = mu.ChannelRMSNorm(
+            in_dim=128, elementwise_affine=False, transpose_dim=True
+        )
+        out_t = norm_t(x)
+
+        norm_nt = mu.ChannelRMSNorm(
+            in_dim=128, elementwise_affine=False, transpose_dim=False
+        )
+        out_nt = norm_nt(x_nt)
+        out_nt = out_nt.transpose(1, 2)
+
+        assert torch.allclose(out_t, out_nt, atol=1e-6)
+
+    def test_channel_rmsnorm_elementwise_affine(self):
+        """With affine=True the output should differ from raw input."""
+        x = torch.randn(2, 32, 8)
+
+        norm_on = mu.ChannelRMSNorm(in_dim=32, elementwise_affine=True)
+        out_on = norm_on(x)
+        assert not torch.allclose(out_on, x, atol=1e-6)
+
+
+class TestMHCA:
+
+    def test_mhca_forward_shapes_3d(self):
+        """Basic forward pass preserves shape for 3D input."""
+        m = mu.MHCA(in_dim=64, head_dim=8, num_heads=None)
+        x = torch.randn(2, 64, 10)
+        out = m(x)
+        assert out.shape == x.shape
+
+    def test_mhca_forward_shapes_4d(self):
+        """Basic forward pass preserves shape for 4D input."""
+        m = mu.MHCA(in_dim=32, head_dim=8, num_heads=None)
+        x = torch.randn(3, 32, 5, 6)
+        out = m(x)
+        assert out.shape == x.shape
+
+    def test_mhca_gated_vs_non_gated(self):
+        """Both gated and non-gated produce valid outputs."""
+        in_dim = 48
+        head_dim = 12
+        num_heads = in_dim // head_dim  # 4 heads
+
+        m_gated = mu.MHCA(
+            in_dim=in_dim, head_dim=head_dim, num_heads=num_heads, is_gated=True
+        )
+        m_nongated = mu.MHCA(
+            in_dim=in_dim, head_dim=head_dim, num_heads=num_heads, is_gated=False
+        )
+
+        x = torch.randn(2, in_dim, 8)
+
+        out_g = m_gated(x)
+        out_ng = m_nongated(x)
+
+        assert out_g.shape == x.shape
+        assert out_ng.shape == x.shape
+
+    def test_mhca_qk_norm_on_off(self):
+        """qk_norm True/False both produce valid outputs."""
+        in_dim = 64
+        head_dim = 16
+
+        m_with = mu.MHCA(in_dim=in_dim, head_dim=head_dim, qk_norm=True)
+        m_without = mu.MHCA(in_dim=in_dim, head_dim=head_dim, qk_norm=False)
+
+        x = torch.randn(2, in_dim, 8)
+
+        assert m_with(x).shape == x.shape
+        assert m_without(x).shape == x.shape
+
+    def test_mhca_num_heads_auto_calculation(self):
+        """When num_heads=None it should be in_dim // head_dim."""
+        for in_dim, head_dim in [(64, 8), (32, 16), (128, 32)]:
+            m = mu.MHCA(in_dim=in_dim, head_dim=head_dim)
+            assert m.num_heads == in_dim // head_dim
+
+    def test_mhca_split_merge_consistency(self):
+        """Internal _split_heads and _merge_heads should round-trip correctly."""
+        x = torch.randn(2, 10, 64)  # (B, L, total_dim=64)
+        m = mu.MHCA(in_dim=64, head_dim=8, num_heads=None)
+
+        assert m.total_dim == 64
+        assert m.num_heads == 8
+        assert m.head_dim == 8
+
+        heads = m._split_heads(x)
+        assert heads.shape == (2, 8, 10, 8)  # (B, H, L, head_dim)
+
+        merged = m._merge_heads(heads)
+        assert torch.allclose(merged, x, atol=1e-6)
+
+
 if __name__ == "__main__":
     unittest.main()

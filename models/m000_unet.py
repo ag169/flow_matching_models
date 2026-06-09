@@ -180,5 +180,5 @@ class FlowMatchingUNet(nn.Module):
         x_out = self.rb_out(x_out, cond_emb)
         x_out = self.norm_out(x_out)
         v_out = self.conv_out(x_out)
-        v_out = v_out[:, :, :x_shape[2], :x_shape[3]]
+        v_out = v_out[:, :, : x_shape[2], : x_shape[3]]
         return v_out

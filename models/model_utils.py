@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Sequence
+from typing import Optional, Sequence
 
 
 def pad_to_align(x: torch.Tensor, dims_multiple_of: int = 8) -> torch.Tensor:
@@ -13,12 +13,10 @@ def pad_to_align(x: torch.Tensor, dims_multiple_of: int = 8) -> torch.Tensor:
     for ii in range(x.ndim - 1, 1, -1):
         pad_list.append(0)
         padded_dim = (
-            ((x_shape[ii] + dims_multiple_of - 1) // dims_multiple_of) * dims_multiple_of
-        )
-        pad_list.append(
-            padded_dim - x_shape[ii]
-        )
-    
+            (x_shape[ii] + dims_multiple_of - 1) // dims_multiple_of
+        ) * dims_multiple_of
+        pad_list.append(padded_dim - x_shape[ii])
+
     return F.pad(x, pad_list)
 
 
@@ -189,3 +187,143 @@ class MLP(nn.Module):
             out = torch.transpose(out, x.ndim - 1, 1)
 
         return out
+
+
+class ChannelRMSNorm(nn.Module):
+    def __init__(
+        self, in_dim: int, elementwise_affine: bool = True, transpose_dim: bool = True
+    ):
+        super().__init__()
+
+        self.transpose_dim = transpose_dim
+        self.norm = nn.RMSNorm(
+            normalized_shape=[
+                in_dim,
+            ],
+            eps=1.0e-5,
+            elementwise_affine=elementwise_affine,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.transpose_dim:
+            x = torch.transpose(x, 1, x.ndim - 1)
+
+        out = self.norm(x)
+
+        if self.transpose_dim:
+            out = torch.transpose(out, x.ndim - 1, 1)
+
+        return out
+
+
+class MHCA(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        head_dim: int = 64,
+        num_heads: Optional[int] = None,
+        is_gated: bool = True,
+        qk_norm: bool = True,
+        transpose_dim: bool = True,
+    ):
+        super().__init__()
+
+        if num_heads is None:
+            num_heads = in_dim // head_dim
+
+        self.in_dim = in_dim
+        self.head_dim = head_dim
+        self.num_heads = num_heads
+        self.total_dim = head_dim * num_heads
+
+        self.is_gated = is_gated
+        self.qk_norm = qk_norm
+        self.transpose_dim = transpose_dim
+
+        self.qkv_dense = nn.Linear(in_dim, 3 * self.total_dim, bias=False)
+
+        if self.is_gated:
+            self.gate_dense = nn.Linear(in_dim, self.total_dim, bias=True)
+        else:
+            self.gate_dense = None
+
+        if self.qk_norm:
+            self.q_norm = ChannelRMSNorm(
+                self.head_dim, elementwise_affine=True, transpose_dim=False
+            )
+            self.k_norm = ChannelRMSNorm(
+                self.head_dim, elementwise_affine=True, transpose_dim=False
+            )
+        else:
+            self.q_norm = None
+            self.k_norm = None
+
+        self.op_dense = nn.Linear(self.total_dim, in_dim, bias=True)
+
+    def _reshape_input(self, x: torch.Tensor) -> torch.Tensor:
+        assert x.ndim in [3, 4]
+
+        if self.transpose_dim:
+            x = torch.transpose(x, 1, x.ndim - 1)
+
+        x_shape = x.shape
+
+        if x.ndim == 4:
+            x = x.reshape((x_shape[0], x_shape[1] * x_shape[2], x_shape[3]))
+
+        return x
+
+    def _reshape_output(self, x: torch.Tensor, orig_shape: torch.Size) -> torch.Tensor:
+        if self.transpose_dim:
+            x = torch.transpose(x, x.ndim - 1, 1)
+
+        if len(orig_shape) != 3:
+            x = x.reshape(orig_shape)
+
+        return x
+
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        x_shape = x.shape
+        assert x.ndim == 3
+        assert x_shape[2] == self.total_dim
+        x = x.reshape((x_shape[0], x_shape[1], self.num_heads, self.head_dim))
+        return x.transpose(1, 2)
+
+    def _merge_heads(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.transpose(1, 2)
+        x_shape = x.shape
+        return x.reshape((x_shape[0], x_shape[1], self.total_dim))
+
+    def _compute_attn(self, x: torch.Tensor) -> torch.Tensor:
+        qkv = self.qkv_dense(x)
+        q, k, v = torch.split(qkv, self.total_dim, dim=-1)
+
+        q = self._split_heads(q)
+        k = self._split_heads(k)
+        v = self._split_heads(v)
+
+        if self.qk_norm:
+            assert self.q_norm is not None
+            assert self.k_norm is not None
+            q = self.q_norm(q)
+            k = self.k_norm(k)
+            qk_scale = 1.0
+        else:
+            qk_scale = math.sqrt(self.head_dim)
+
+        attn_op = F.scaled_dot_product_attention(q, k, v, scale=qk_scale)
+        attn_op = self._merge_heads(attn_op)
+        return attn_op
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_shape = x.shape
+        x_rs = self._reshape_input(x)
+        attn_out = self._compute_attn(x_rs)
+
+        if self.is_gated:
+            assert self.gate_dense is not None
+            attn_gate = self.gate_dense(x_rs)
+            attn_out = torch.sigmoid(attn_gate) * attn_out
+
+        attn_out = self.op_dense(attn_out)
+        return self._reshape_output(attn_out, x_shape)
