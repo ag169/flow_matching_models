@@ -1,6 +1,9 @@
 from typing import Any, Dict
 
+import torch.nn as nn
+
 from .m000_unet import FlowMatchingUNet
+from .m001_transformer import FlowMatchingTransformer
 
 
 def get_model(
@@ -8,7 +11,7 @@ def get_model(
     model_params: Dict[str, Any] | None,
     c_in: int = 3,
     num_classes: int = 10,
-) -> FlowMatchingUNet:
+) -> nn.Module:
     """
     Instantiate a model based on architecture name and parameters.
 
@@ -25,6 +28,12 @@ def get_model(
         model_params = dict()
     if model_arch == "m000_unet":
         return FlowMatchingUNet(
+            c_in=c_in,
+            num_classes=num_classes,
+            **model_params,
+        )
+    elif model_arch == "m001_transformer":
+        return FlowMatchingTransformer(
             c_in=c_in,
             num_classes=num_classes,
             **model_params,
