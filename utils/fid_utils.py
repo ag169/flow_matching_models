@@ -182,7 +182,7 @@ def _generate_and_extract_features(
             samples = torch.clip(samples, 0.0, 1.0)
             samples = _INCEPTION_TRANSFORM(samples)
             logits = inception_model(samples)
-            features = logits.cpu().numpy()
+            features = logits.float().cpu().numpy()
             features_list.append(features)
             total += current_batch
 
