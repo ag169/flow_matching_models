@@ -1,0 +1,48 @@
+model:
+  arch: m001_transformer
+  # 21.4M params
+  params:
+    num_tx_ch: 384
+    num_tx_blocks: 8
+    patchify_size: 4
+    embed_dim: 256
+
+dataset:
+  name: cifar10
+  train:
+    imgsize: 32
+    batchsize: 64
+    n_workers: 8
+  val:
+    imgsize: 32
+    batchsize: 32
+    n_workers: 4
+
+training:
+  # log_freq: 1000
+  log_freq: 100
+  tb_log_freq: 50
+  # Probability of dropping CLS conditioning.
+  # Needed to enable CFG.
+  cfg_dropout_prob: 0.15
+  ema_decay: 0.999
+
+validation:
+  val_iters: 5000
+  sample_num_steps: 20
+  sample_cfg_scale: 2.0
+  log_sample_num_imgs: 10
+
+fid:
+  num_samples: 10000
+  batch_size: 32
+  cfg_scale: 1.0
+
+lr: 2.0e-4
+weight_decay: 1.e-6
+grad_clip_norm: 5.0
+train_iters: 300000
+warmup_iters: 2000
+scheduler: 'cosine'
+amp:
+  enabled: true
