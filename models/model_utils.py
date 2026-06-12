@@ -216,6 +216,7 @@ class ChannelRMSNorm(nn.Module):
         self.in_dim = in_dim
         self.transpose_dim = transpose_dim
         self.elementwise_affine = elementwise_affine
+        self.eps = 1.0e-5
 
         if self.elementwise_affine:
             self.norm_scale = nn.Parameter(torch.ones((in_dim,)), requires_grad=True)
@@ -228,7 +229,11 @@ class ChannelRMSNorm(nn.Module):
         else:
             norm_dim = -1
 
-        out = F.normalize(x, p=2, dim=norm_dim, eps=1.0e-5)
+        # Implemented using elementary functions due to issue with 'missing torch.device'
+        out_rrms = torch.rsqrt(
+            torch.mean(torch.square(x), dim=norm_dim, keepdim=True) + self.eps
+        )
+        out = x * out_rrms
 
         if self.elementwise_affine:
             assert self.norm_scale is not None
@@ -236,6 +241,32 @@ class ChannelRMSNorm(nn.Module):
             norm_shape[norm_dim] = self.in_dim
             norm_scale = self.norm_scale.reshape(norm_shape)
             out = out * norm_scale
+
+        return out
+
+
+class ChannelLayerNorm(nn.Module):
+    def __init__(
+        self, in_dim: int, elementwise_affine: bool = True, transpose_dim: bool = True
+    ):
+        super().__init__()
+
+        self.in_dim = in_dim
+        self.transpose_dim = transpose_dim
+        self.elementwise_affine = elementwise_affine
+
+        self.norm = nn.LayerNorm(
+            in_dim, eps=1.0e-5, elementwise_affine=elementwise_affine
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.transpose_dim:
+            x = torch.transpose(x, 1, x.ndim - 1)
+
+        out = self.norm(x)
+
+        if self.transpose_dim:
+            out = torch.transpose(out, x.ndim - 1, 1)
 
         return out
 
