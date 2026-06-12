@@ -204,15 +204,17 @@ class Trainer:
         self.train_step_timer = log_utils.Timer()
         self.val_step_timer = log_utils.Timer()
 
+        self.val_fid_enabled = self.config["fid"].get("enabled", False)
         self.val_fid_num_samples = self.config["fid"].get("num_samples", 5000)
         self.val_fid_sample_batch_size = self.config["fid"].get("batch_size", 32)
         self.val_fid_cfg_scale = self.config["fid"].get("cfg_scale", 1.0)
-        self.fid_calculator = fid_utils.FidCalculator(
-            gt_loader=self.val_loader,
-            device=self.device,
-            num_samples=self.val_fid_num_samples,
-            batch_size=self.val_fid_sample_batch_size,
-        )
+        if self.val_fid_enabled:
+            self.fid_calculator = fid_utils.FidCalculator(
+                gt_loader=self.val_loader,
+                device=self.device,
+                num_samples=self.val_fid_num_samples,
+                batch_size=self.val_fid_sample_batch_size,
+            )
 
     def _train_step(self, batch: tuple) -> Dict[str, float]:
         """Execute one training step"""
@@ -298,6 +300,23 @@ class Trainer:
 
         print(f"Sample images logged at step {step}")
 
+    def _compute_fid(self, val_model: nn.Module):
+        with torch.autocast(
+            device_type=self.device.type,
+            dtype=torch.bfloat16,
+            enabled=self.amp_enabled,
+        ):
+            val_fid = self.fid_calculator.compute_fid(
+                model=val_model,
+                device=self.device,
+                solver=self.val_ode_solver,
+                cfg_scale=self.val_fid_cfg_scale,
+                num_classes=self.num_classes,
+                imgsize=self.config["dataset"]["val"]["imgsize"],
+            )
+
+        return val_fid
+
     def _validate(self, step: int) -> Dict[str, float]:
         """Execute validation loop"""
         if self.ema_enabled:
@@ -349,20 +368,9 @@ class Trainer:
         assert val_batch_rate is not None
         val_metrics[_VAL_STEPS_PER_SECOND_KEY] = val_batch_rate
 
-        with torch.autocast(
-            device_type=self.device.type,
-                dtype=torch.bfloat16,
-                enabled=self.amp_enabled,
-        ):
+        if self.val_fid_enabled:
             val_metrics[f"{_VAL_FID_KEY}_{self.val_fid_num_samples}-samples"] = (
-                self.fid_calculator.compute_fid(
-                    model=val_model,
-                    device=self.device,
-                    solver=self.val_ode_solver,
-                    cfg_scale=self.val_fid_cfg_scale,
-                    num_classes=self.num_classes,
-                    imgsize=self.config["dataset"]["val"]["imgsize"],
-                )
+                self._compute_fid(val_model)
             )
 
         for metric, val in val_metrics.items():

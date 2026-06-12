@@ -32,6 +32,7 @@ validation:
   log_sample_num_imgs: 10
 
 fid:
+  enabled: True
   num_samples: 10000
   batch_size: 32
   cfg_scale: 1.0
