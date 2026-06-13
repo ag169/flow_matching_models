@@ -5,43 +5,6 @@ from models import m001_transformer
 # pytest .\tests\test_model_001_transformer.py
 
 
-class TestAdaLNZero(unittest.TestCase):
-
-    def setUp(self):
-        self.in_dim = 64
-        self.embed_dim = 128
-        self.batch_size = 2
-
-    def test_adaln_zero_forward(self):
-        """Tests AdaLNZero with conditioning injection."""
-        adaln = m001_transformer.AdaLNZero(in_dim=self.in_dim, embed_dim=self.embed_dim)
-
-        # Inputs: x [B, ..., in_dim], emb [B, embed_dim]
-        B = self.batch_size
-        H = 8
-        W = 8
-        x = torch.rand(B, H, W, self.in_dim)
-        emb = torch.rand(B, self.embed_dim)
-
-        output, alpha = adaln(x, emb)
-
-        self.assertEqual(output.shape, torch.Size([B, H, W, self.in_dim]))
-        self.assertEqual(alpha.shape, torch.Size([B, 1, 1, self.in_dim]))
-
-    def test_adaln_zero_with_broadcast_emb(self):
-        """Tests AdaLNZero with broadcastable conditioning embedding."""
-        adaln = m001_transformer.AdaLNZero(32, 64)
-
-        # Single embedding that should be broadcast to batch
-        x = torch.rand(4, 8, 32)
-        emb = torch.zeros(1, 64)  # Shape [1, embed_dim] - will be broadcast
-
-        output, alpha = adaln(x, emb)
-
-        self.assertEqual(output.shape, torch.Size([4, 8, 32]))
-        self.assertEqual(alpha.shape, torch.Size([1, 1, 32]))
-
-
 class TestTransformerBlock(unittest.TestCase):
 
     def setUp(self):
@@ -53,16 +16,13 @@ class TestTransformerBlock(unittest.TestCase):
 
     def test_transformer_block_forward(self):
         """Tests TransformerBlock with MHCA attention and gated MLP FFN."""
-        block = m001_transformer.TransformerBlock(
-            in_dim=self.in_dim, embed_dim=self.embed_dim
-        )
+        block = m001_transformer.DiTBlock(in_dim=self.in_dim, embed_dim=self.embed_dim)
 
-        # Inputs: x [B, dim, H, W], emb [B, embed_dim]
+        # Inputs: x [B, H * W, in_dim], emb [B, embed_dim]
         B = self.batch_size
         x = torch.rand(
             B,
-            self.height,
-            self.width,
+            self.height * self.width,
             self.in_dim,
         )
         emb = torch.rand(B, self.embed_dim)
@@ -71,12 +31,12 @@ class TestTransformerBlock(unittest.TestCase):
 
         self.assertEqual(
             output.shape,
-            torch.Size([B, self.height, self.width, self.in_dim]),
+            torch.Size([B, self.height * self.width, self.in_dim]),
         )
 
     def test_transformer_block_with_gating(self):
         """Tests that gating is applied to attention and MLP outputs."""
-        block = m001_transformer.TransformerBlock(32, 64)
+        block = m001_transformer.DiTBlock(32, 64)
 
         B = 2
         x = torch.rand(B, 8, 32)
