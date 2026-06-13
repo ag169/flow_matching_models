@@ -69,30 +69,43 @@ class SinusoidalPositionalEmbedding(nn.Module):
         self.dim = dim
         self.max_p = max_period
 
-    def _pos_embed_for_seq_len(self, seq_len: int, x: torch.Tensor) -> torch.Tensor:
-        position = torch.arange(seq_len, dtype=torch.float, device=x.device)
+    def _pos_embed_for_seq_len(
+        self, dim: int, seq_len: int, device: torch.device
+    ) -> torch.Tensor:
+        position = torch.arange(seq_len, dtype=torch.float, device=device)
         freqs = torch.exp(
-            torch.arange(0, self.dim, 2, dtype=torch.float, device=x.device)
-            * (-math.log(self.max_p) / self.dim)
+            torch.arange(0, dim, 2, dtype=torch.float, device=device)
+            * (-math.log(self.max_p) / dim)
         )
         embeddings = position[None, :] * freqs[:, None]
         return torch.cat([embeddings.sin(), embeddings.cos()], dim=0)
 
     def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+        device = tokens.device
         if tokens.ndim == 3:
+            assert self.dim % 2 == 0
             seq_len = tokens.shape[2]
-            pos_embed = self._pos_embed_for_seq_len(seq_len, tokens)
+            pos_embed = self._pos_embed_for_seq_len(self.dim, seq_len, device)
             return tokens + pos_embed[None, :, :]
         elif tokens.ndim == 4:
+            assert self.dim % 4 == 0
             seq_h = tokens.shape[2]
-            pos_embed_h = self._pos_embed_for_seq_len(seq_h, tokens)
-
             seq_w = tokens.shape[3]
-            pos_embed_w = self._pos_embed_for_seq_len(seq_w, tokens)
 
-            return (
-                tokens + pos_embed_h[None, :, :, None] + pos_embed_w[None, :, None, :]
-            )
+            pos_embed_h = self._pos_embed_for_seq_len(self.dim // 2, seq_h, device)[
+                :, :, None
+            ]
+            # pos_embed_h = pos_embed_h.repeat([1, 1, seq_w])
+            pos_embed_h = pos_embed_h.expand([-1, -1, seq_w])
+
+            pos_embed_w = self._pos_embed_for_seq_len(self.dim // 2, seq_w, device)[
+                :, None, :
+            ]
+            # pos_embed_w = pos_embed_w.repeat([1, seq_h, 1])
+            pos_embed_w = pos_embed_w.expand([-1, seq_h, -1])
+
+            pos_embed = torch.cat([pos_embed_h, pos_embed_w], dim=0)
+            return tokens + pos_embed[None, ...]
         else:
             raise ValueError("Input tensor must have 3 or 4 dimensions")
 
