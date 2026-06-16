@@ -250,23 +250,23 @@ class TestChannelRMSNorm:
         assert not torch.allclose(out_on, x, atol=1e-6)
 
 
-class TestMHCA:
+class TestMHSA:
 
-    def test_mhca_forward_shapes_3d(self):
+    def test_mhsa_forward_shapes_3d(self):
         """Basic forward pass preserves shape for 3D input."""
         m = mu.MHSA(in_dim=64, head_dim=8, num_heads=None)
         x = torch.randn(2, 64, 10)
         out = m(x)
         assert out.shape == x.shape
 
-    def test_mhca_forward_shapes_4d(self):
+    def test_mhsa_forward_shapes_4d(self):
         """Basic forward pass preserves shape for 4D input."""
         m = mu.MHSA(in_dim=32, head_dim=8, num_heads=None)
         x = torch.randn(3, 32, 5, 6)
         out = m(x)
         assert out.shape == x.shape
 
-    def test_mhca_gated_vs_non_gated(self):
+    def test_mhsa_gated_vs_non_gated(self):
         """Both gated and non-gated produce valid outputs."""
         in_dim = 48
         head_dim = 12
@@ -287,7 +287,7 @@ class TestMHCA:
         assert out_g.shape == x.shape
         assert out_ng.shape == x.shape
 
-    def test_mhca_qk_norm_on_off(self):
+    def test_mhsa_qk_norm_on_off(self):
         """qk_norm True/False both produce valid outputs."""
         in_dim = 64
         head_dim = 16
@@ -300,13 +300,13 @@ class TestMHCA:
         assert m_with(x).shape == x.shape
         assert m_without(x).shape == x.shape
 
-    def test_mhca_num_heads_auto_calculation(self):
+    def test_mhsa_num_heads_auto_calculation(self):
         """When num_heads=None it should be in_dim // head_dim."""
         for in_dim, head_dim in [(64, 8), (32, 16), (128, 32)]:
             m = mu.MHSA(in_dim=in_dim, head_dim=head_dim)
             assert m.num_heads == in_dim // head_dim
 
-    def test_mhca_split_merge_consistency(self):
+    def test_mhsa_split_merge_consistency(self):
         """Internal _split_heads and _merge_heads should round-trip correctly."""
         x = torch.randn(2, 10, 64)  # (B, L, total_dim=64)
         m = mu.MHSA(in_dim=64, head_dim=8, num_heads=None)
@@ -320,6 +320,12 @@ class TestMHCA:
 
         merged = m._merge_heads(heads)
         assert torch.allclose(merged, x, atol=1e-6)
+
+    def test_mhsa_linear_attn(self):
+        m = mu.MHSA(in_dim=32, head_dim=8, num_heads=None, use_linear_attn=True)
+        x = torch.randn(3, 32, 5, 6)
+        out = m(x)
+        assert out.shape == x.shape
 
 
 if __name__ == "__main__":

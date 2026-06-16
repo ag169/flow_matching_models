@@ -291,6 +291,7 @@ class MHSA(nn.Module):
         head_dim: int = 64,
         num_heads: Optional[int] = None,
         is_gated: bool = True,
+        use_linear_attn: bool = False,
         qk_norm: bool = True,
         transpose_dim: bool = True,
     ):
@@ -304,11 +305,12 @@ class MHSA(nn.Module):
         self.num_heads = num_heads
         self.total_dim = head_dim * num_heads
 
+        self.use_linear_attn = use_linear_attn
         self.is_gated = is_gated
         self.qk_norm = qk_norm
         self.transpose_dim = transpose_dim
 
-        self.qkv_dense = nn.Linear(in_dim, 3 * self.total_dim, bias=False)
+        self.qkv_dense = nn.Linear(in_dim, 3 * self.total_dim, bias=True)
 
         if self.is_gated:
             self.gate_dense = nn.Linear(in_dim, self.total_dim, bias=True)
@@ -366,6 +368,10 @@ class MHSA(nn.Module):
         qkv = self.qkv_dense(x)
         q, k, v = torch.split(qkv, self.total_dim, dim=-1)
 
+        if self.use_linear_attn:
+            q = F.relu(q)
+            k = F.relu(k)
+
         q = self._split_heads(q)
         k = self._split_heads(k)
         v = self._split_heads(v)
@@ -375,11 +381,19 @@ class MHSA(nn.Module):
             assert self.k_norm is not None
             q = self.q_norm(q)
             k = self.k_norm(k)
-            qk_scale = 1.0
+            dot_prod_qk_scale = 1.0
         else:
-            qk_scale = 1.0 / math.sqrt(self.head_dim)
+            dot_prod_qk_scale = 1.0 / math.sqrt(self.head_dim)
 
-        attn_op = F.scaled_dot_product_attention(q, k, v, scale=qk_scale)
+        if self.use_linear_attn:
+            kv = torch.einsum("bhld,bhlo->bhdo", k, v)
+            qkv = torch.einsum("bhld,bhdo->bhlo", q, kv)
+            k_sum = k.sum(dim=2)
+            z = torch.einsum("bhld,bhd->bhl", q, k_sum) + 1.0e-5
+            attn_op = qkv / z.unsqueeze(-1)
+        else:
+            attn_op = F.scaled_dot_product_attention(q, k, v, scale=dot_prod_qk_scale)
+
         attn_op = self._merge_heads(attn_op)
         return attn_op
 
