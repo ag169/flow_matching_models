@@ -1,9 +1,9 @@
 model:
   arch: m001_transformer
-  # 21.4M params
+  # 31.2M params (DiT-S)
   params:
     num_tx_ch: 384
-    num_tx_blocks: 8
+    num_tx_blocks: 12
     patchify_size: 4
     embed_dim: 256
 
