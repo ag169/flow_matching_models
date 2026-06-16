@@ -41,7 +41,7 @@ class DiTBlock(nn.Module):
             in_dim, elementwise_affine=False, transpose_dim=False
         )
 
-        self.attention = mu.MHCA(
+        self.attention = mu.MHSA(
             in_dim=in_dim,
             head_dim=min(in_dim, attn_head_dim),
             num_heads=None,

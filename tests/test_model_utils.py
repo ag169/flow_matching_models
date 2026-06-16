@@ -254,14 +254,14 @@ class TestMHCA:
 
     def test_mhca_forward_shapes_3d(self):
         """Basic forward pass preserves shape for 3D input."""
-        m = mu.MHCA(in_dim=64, head_dim=8, num_heads=None)
+        m = mu.MHSA(in_dim=64, head_dim=8, num_heads=None)
         x = torch.randn(2, 64, 10)
         out = m(x)
         assert out.shape == x.shape
 
     def test_mhca_forward_shapes_4d(self):
         """Basic forward pass preserves shape for 4D input."""
-        m = mu.MHCA(in_dim=32, head_dim=8, num_heads=None)
+        m = mu.MHSA(in_dim=32, head_dim=8, num_heads=None)
         x = torch.randn(3, 32, 5, 6)
         out = m(x)
         assert out.shape == x.shape
@@ -272,10 +272,10 @@ class TestMHCA:
         head_dim = 12
         num_heads = in_dim // head_dim  # 4 heads
 
-        m_gated = mu.MHCA(
+        m_gated = mu.MHSA(
             in_dim=in_dim, head_dim=head_dim, num_heads=num_heads, is_gated=True
         )
-        m_nongated = mu.MHCA(
+        m_nongated = mu.MHSA(
             in_dim=in_dim, head_dim=head_dim, num_heads=num_heads, is_gated=False
         )
 
@@ -292,8 +292,8 @@ class TestMHCA:
         in_dim = 64
         head_dim = 16
 
-        m_with = mu.MHCA(in_dim=in_dim, head_dim=head_dim, qk_norm=True)
-        m_without = mu.MHCA(in_dim=in_dim, head_dim=head_dim, qk_norm=False)
+        m_with = mu.MHSA(in_dim=in_dim, head_dim=head_dim, qk_norm=True)
+        m_without = mu.MHSA(in_dim=in_dim, head_dim=head_dim, qk_norm=False)
 
         x = torch.randn(2, in_dim, 8)
 
@@ -303,13 +303,13 @@ class TestMHCA:
     def test_mhca_num_heads_auto_calculation(self):
         """When num_heads=None it should be in_dim // head_dim."""
         for in_dim, head_dim in [(64, 8), (32, 16), (128, 32)]:
-            m = mu.MHCA(in_dim=in_dim, head_dim=head_dim)
+            m = mu.MHSA(in_dim=in_dim, head_dim=head_dim)
             assert m.num_heads == in_dim // head_dim
 
     def test_mhca_split_merge_consistency(self):
         """Internal _split_heads and _merge_heads should round-trip correctly."""
         x = torch.randn(2, 10, 64)  # (B, L, total_dim=64)
-        m = mu.MHCA(in_dim=64, head_dim=8, num_heads=None)
+        m = mu.MHSA(in_dim=64, head_dim=8, num_heads=None)
 
         assert m.total_dim == 64
         assert m.num_heads == 8

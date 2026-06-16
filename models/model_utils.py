@@ -284,7 +284,7 @@ class ChannelLayerNorm(nn.Module):
         return out
 
 
-class MHCA(nn.Module):
+class MHSA(nn.Module):
     def __init__(
         self,
         in_dim: int,
