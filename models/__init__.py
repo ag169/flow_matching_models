@@ -4,6 +4,7 @@ import torch.nn as nn
 
 from .m000_unet import FlowMatchingUNet
 from .m001_transformer import FlowMatchingTransformer
+from .m002_lin_transformer import FlowMatchingTransformer as LinTransformer
 
 
 def get_model(
@@ -34,6 +35,12 @@ def get_model(
         )
     elif model_arch == "m001_transformer":
         return FlowMatchingTransformer(
+            c_in=c_in,
+            num_classes=num_classes,
+            **model_params,
+        )
+    elif model_arch == "m002_lin_transformer":
+        return LinTransformer(
             c_in=c_in,
             num_classes=num_classes,
             **model_params,
