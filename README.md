@@ -8,7 +8,7 @@ This project implements **conditional flow matching** — a modern generative mo
 Implementation details:
 - **Class conditioned** flow-matching models for image generation. Can use any image classification dataset to train a class-label conditioned image generation model
 - **Conditional Flow Matching Loss** with classifier-free guidance training via class label dropout
-- **UNet Arch** (`m000_unet.py`) with sinusoidal timestep embeddings, AdaGN conditioning
+- **UNet & Transformer Arch** with sinusoidal timestep embedding & AdaGN/AdaLN conditioning injection
 - **Mixed-precision training** via `torch.autocast` with `bfloat16` dtype
 - **Learning rate warmup + cosine decay** learning rate schedule
 - **TensorBoard logging** for loss curves and sample images
