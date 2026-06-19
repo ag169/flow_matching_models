@@ -21,6 +21,7 @@ class DiTBlock(nn.Module):
     Args:
         in_dim: Input dimensionality.
         embed_dim: Dimensionality of the conditioning embedding.
+        attn_head_dim: Dim of each attention head.
     """
 
     def __init__(self, in_dim: int, embed_dim: int, attn_head_dim: int = 64):

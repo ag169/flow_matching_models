@@ -21,6 +21,8 @@ class LinAttnDiTBlock(nn.Module):
     Args:
         in_dim: Input dimensionality.
         embed_dim: Dimensionality of the conditioning embedding.
+        attn_head_dim: Dim of each attention head.
+        conv_ksize: Kernel-size for MBConv block.
     """
 
     def __init__(
