@@ -284,6 +284,50 @@ class ChannelLayerNorm(nn.Module):
         return out
 
 
+class DynamicTanh(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        elementwise_affine: bool = True,
+        transpose_dim: bool = True,
+        init_alpha: float = 0.5,
+    ):
+        super().__init__()
+
+        self.in_dim = in_dim
+        self.transpose_dim = transpose_dim
+        self.elementwise_affine = elementwise_affine
+
+        self.ip_scale = nn.Parameter(torch.ones(1) * init_alpha, requires_grad=True)
+
+        if self.elementwise_affine:
+            self.norm_scale = nn.Parameter(torch.ones((in_dim,)), requires_grad=True)
+            self.norm_beta = nn.Parameter(torch.zeros((in_dim,)), requires_grad=True)
+        else:
+            self.norm_scale = None
+            self.norm_beta = None
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_norm = F.tanh(x * self.ip_scale)
+
+        if self.elementwise_affine:
+            if self.transpose_dim:
+                norm_dim = 1
+            else:
+                norm_dim = -1
+
+            assert self.norm_scale is not None
+            assert self.norm_beta is not None
+
+            norm_shape = [1 for _ in range(x.ndim)]
+            norm_shape[norm_dim] = self.in_dim
+            norm_scale = self.norm_scale.reshape(norm_shape)
+            norm_beta = self.norm_beta.reshape(norm_shape)
+            x_norm = (x_norm * norm_scale) + norm_beta
+
+        return x_norm
+
+
 class MHSA(nn.Module):
     def __init__(
         self,

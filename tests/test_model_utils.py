@@ -250,6 +250,30 @@ class TestChannelRMSNorm:
         assert not torch.allclose(out_on, x, atol=1e-6)
 
 
+class TestDynamicTanh:
+
+    def test_dynamic_tanh_basic_3d(self):
+        """Verify output shape matches input for 3D tensor."""
+        norm = mu.DynamicTanh(in_dim=12, elementwise_affine=True)
+        x = torch.randn(2, 12, 10)
+        out = norm(x)
+        assert out.shape == x.shape
+
+    def test_dynamic_tanh_basic_4d(self):
+        """Verify output shape matches input for 4D tensor."""
+        norm = mu.DynamicTanh(in_dim=16, elementwise_affine=True)
+        x = torch.randn(3, 16, 5, 6)
+        out = norm(x)
+        assert out.shape == x.shape
+
+    def test_dynamic_tanh_3d_transposed_dim(self):
+        """Verify output shape matches input for 3D tensor with channel last dims."""
+        norm = mu.DynamicTanh(in_dim=12, elementwise_affine=True, transpose_dim=False)
+        x = torch.randn(2, 19, 12)
+        out = norm(x)
+        assert out.shape == x.shape
+
+
 class TestMHSA:
 
     def test_mhsa_forward_shapes_3d(self):
