@@ -1,10 +1,10 @@
 model:
   arch: m002_lin_transformer
-  # 31.2M params (DiT-S)
+  # 16.1M params (DiT-S / 2)
   params:
-    num_tx_ch: 384
+    num_tx_ch: 256
     num_tx_blocks: 12
-    patchify_size: 4
+    patchify_size: 2
     embed_dim: 256
 
 dataset:
